@@ -1,0 +1,142 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create-release:
+    name: create-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      up_version: ${{ env.UP_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.UP_VERSION == ''
+        run: |
+          echo "UP_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.UP_VERSION }}"
+
+      - name: Generate a changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v2
+        with:
+          args: --latest --strip header -o CHANGELOG.md
+
+      - name: Check release
+        run: cat CHANGELOG.md
+
+      - name: Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+
+  build-release:
+    name: build-release
+    needs: ['create-release']
+    permissions:
+      contents: write
+    runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        build: [linux, linux-arm]
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: nightly
+          target: x86_64-unknown-linux-musl
+        - build: linux-arm
+          os: ubuntu-latest
+          rust: nightly
+          target: aarch64-unknown-linux-musl
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        target: ${{ matrix.target }}
+        components: rust-src
+
+    - name: Use Cross
+      shell: bash
+      run: |
+        cargo install cross
+        echo "CARGO=cross" >> $GITHUB_ENV
+        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Install musl tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+
+    - name: Setup cargo config
+      run: |
+        cat <<EOF >> ~/.cargo/config
+        [target.x86_64-unknown-linux-musl]
+        linker = "x86_64-linux-musl-gcc"
+
+        [target.aarch64-unknown-linux-musl]
+        linker = "aarch64-linux-musl-gcc"
+        EOF
+
+    - name: Build release binary
+      run: |
+        cross build \
+          --target ${{ matrix.target }} \
+          --release \
+          -Z build-std=std,panic_abort \
+          -Z build-std-features=panic_immediate_abort
+
+    - name: Check size
+      run: |
+        size ./target/${{ matrix.target }}/release/up
+        ls -la ./target/${{ matrix.target }}/release/up
+
+    - name: Run UPX
+      uses: crazy-max/ghaction-upx@v2
+      with:
+        version: latest
+        files: ./target/${{ matrix.target }}/release/up
+        args: --ultra-brute
+
+    - name: Check size
+      run: |
+        size ./target/${{ matrix.target }}/release/up
+        ls -la ./target/${{ matrix.target }}/release/up
+
+    - name: Build archive
+      shell: bash
+      run: |
+        STAGING="up-${{ needs.create-release.outputs.up_version }}-${{ matrix.target }}"
+        mkdir -p "${STAGING}"
+        cp {README.md,LICENSE} "${STAGING}/"
+        cp "target/${{ matrix.target }}/release/up" "${STAGING}/"
+        tar czf "${STAGING}.tar.gz" "${STAGING}"
+        echo "ASSET=${STAGING}.tar.gz" >> $GITHUB_ENV
+
+    - name: Upload release archive
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream

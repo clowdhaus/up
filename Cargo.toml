@@ -1,0 +1,30 @@
+[package]
+name = "up"
+version = "0.1.0"
+authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
+description = "The bare minimum to check if a server is up"
+documentation = "https://github.com/clowdhaus/up"
+homepage = "https://github.com/clowdhaus/up"
+repository = "https://github.com/clowdhaus/up"
+license = "Apache-2.0"
+edition = "2021"
+categories = [
+  "command-line-utilities",
+]
+exclude = [
+  ".github",
+  ".gitignore",
+  "docs",
+  "tests",
+]
+
+[[bin]]
+name = "up"
+path = "src/main.rs"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
