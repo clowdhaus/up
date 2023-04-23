@@ -1,6 +1,6 @@
 # up
 
-You up?
+> Hey, you up?
 
 `up` checks if a local server is healthy by performing an HTTP GET request at the specified path and port. If the server responds with a 200 OK, `up` exits with a 0 status code. Otherwise, `up` exits with a 1 status code, indicating the health check has failed.
 
@@ -23,5 +23,7 @@ UP_PATH=/healthy UP_PORT=3000 up
 Using arguments, the first argument is the path, and the second argument is the port:
 
 ```sh
-up /healthy 3000
+up --port 3000 --path /healthy
 ```
+
+You can mix and match environment variables and arguments - environment variables will take precedence over arguments.

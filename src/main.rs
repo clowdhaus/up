@@ -4,34 +4,53 @@ use std::{
   net::{Shutdown, SocketAddr, TcpStream},
 };
 
-fn get_path(args: &[String]) -> String {
+/// Port and path arguments that can be passed as
+/// --port <...> and --path <...>
+struct Args {
+  port: Option<u16>,
+  path: Option<String>,
+}
+
+/// Parse any arguments provided to the executable
+fn parse_args() -> Result<Args, pico_args::Error> {
+  let mut pargs = pico_args::Arguments::from_env();
+
+  let args = Args {
+    port: pargs.opt_value_from_str("--port")?,
+    path: pargs.opt_value_from_str("--path")?,
+  };
+  let _ = pargs.finish();
+
+  Ok(args)
+}
+
+/// Get the path from either the environment variable or parsed arguments
+fn get_path(args: &Args) -> String {
   match env::var("UP_PATH") {
     Ok(path) => path,
-    Err(_) => {
-      if args.len() > 2 {
-        args[1].to_string()
-      } else {
-        "/healthz".to_string()
-      }
-    }
+    Err(_) => match &args.path {
+      Some(path) => path.to_owned(),
+      None => "/healthz".to_string(),
+    },
   }
 }
 
-fn get_port(args: &[String]) -> u16 {
- match env::var("UP_PORT") {
+/// Get the port from either the environment variable or parsed arguments
+fn get_port(args: &Args) -> u16 {
+  match env::var("UP_PORT") {
     Ok(port) => port.parse::<u16>().unwrap(),
-    Err(_) => {
-      if args.len() > 2 {
-        args[2].parse::<u16>().unwrap()
-      } else {
-        8080
-      }
-    }
+    Err(_) => args.port.unwrap_or(80),
   }
 }
 
 fn main() -> std::io::Result<()> {
-  let args = env::args().collect::<Vec<String>>();
+  let args = match parse_args() {
+    Ok(v) => v,
+    Err(e) => {
+      eprintln!("Error: {e}");
+      std::process::exit(1);
+    }
+  };
 
   let port = get_port(&args);
   let addr = SocketAddr::from(([127, 0, 0, 1], port));
