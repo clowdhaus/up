@@ -4,7 +4,7 @@
 
 `up` checks if a local server is healthy by performing an HTTP GET request at the specified path and port. If the server responds with a 200 OK, `up` exits with a 0 status code. Otherwise, `up` exits with a 1 status code, indicating the health check has failed.
 
-Why is this useful? Amazon ECS provides support for health checking of containers defined in ECS Tasks, but it does not provide a client, nor the facilities, to perform the health check request. Instead, users must add a client, such as `curl`, to their container image in order to support the health check. `curl` is an amazing tool, but quite a bit more than whats necessary for a simple health check. Therefore, `up` was created - to simply ask "Hey, you up?"
+Why is this useful? Amazon ECS provides support for [health checking of containers defined in ECS Tasks](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_HealthCheck.html#API_HealthCheck_Contents), but it does not provide a client, nor the facilities, to perform the health check request. Instead, users must add a client, such as `curl`, to their container image in order to support the health check. `curl` is an amazing tool, but quite a bit more than whats necessary for a simple health check. Therefore, `up` was created - to simply ask "Hey, you up?"
 
 ## Usage
 

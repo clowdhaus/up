@@ -1,6 +1,6 @@
 [package]
 name = "up"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
 description = "The bare minimum to check if a server is up"
 documentation = "https://github.com/clowdhaus/up"
